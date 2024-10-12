@@ -1,5 +1,5 @@
 // background.js
-const GROQ_API_KEY = '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';
+const GROQ_API_KEY = 'your-api-key-here';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 async function callGroqAPI(prompt) {
