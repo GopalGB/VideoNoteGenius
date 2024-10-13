@@ -87,35 +87,32 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      setTimeout(() => {
-        chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' }, async videoInfo => {
-          if (chrome.runtime.lastError) {
-            updateStatus('Error: Could not connect to content script or find a video', true);
-            generateButton.disabled = false;
-            return;
-          }
+      chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' }, async videoInfo => {
+        if (chrome.runtime.lastError) {
+          updateStatus('Error: Could not connect to content script or find a video', true);
+          generateButton.disabled = false;
+          return;
+        }
 
-          if (videoInfo) {
-            chrome.runtime.sendMessage({
-              action: 'generateNotes',
-              videoInfo
-            }, response => {
-              if (response.success) {
-                displayNotes(response.notes, videoInfo.title);
-                updateStatus('Study notes generated successfully!');
-                enableExportButtons();
-              } else {
-                updateStatus(`Error: ${response.error}`, true);
-              }
-              generateButton.disabled = false;
-            });
-          } else {
-            updateStatus('No video found on this page. Please refresh the page and try again.');
+        if (videoInfo) {
+          chrome.runtime.sendMessage({
+            action: 'generateNotes',
+            videoInfo
+          }, response => {
+            if (response.success) {
+              displayNotes(response.notes, videoInfo.title);
+              updateStatus('Study notes generated successfully!');
+              enableExportButtons();
+            } else {
+              updateStatus(`Error: ${response.error}`, true);
+            }
             generateButton.disabled = false;
-          }
-        });
-      }, 100);
-
+          });
+        } else {
+          updateStatus('No video found on this page. Please refresh the page and try again.');
+          generateButton.disabled = false;
+        }
+      });
     } catch (error) {
       updateStatus(`Error: ${error.message}`, true);
       generateButton.disabled = false;
@@ -129,17 +126,53 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // Convert the notes into a string format for copying
+    // Convert the notes into a formatted string for copying
     let notesText = '';
     currentNotes.forEach(note => {
-      notesText += `Timestamp: ${formatTime(note.timestamp)}\n`;
-      notesText += `Main Topic: ${note.mainTopic}\n`;
-      notesText += `Subtopics: ${note.subtopics.join(', ')}\n`;
-      notesText += `Key Points: ${note.keyPoints.join(', ')}\n`;
-      notesText += `Examples: ${note.examples.join(', ')}\n`;
-      notesText += `Key Terms: ${Object.entries(note.definitions).map(([term, def]) => `${term}: ${def}`).join(', ')}\n`;
-      notesText += `Quiz Questions: ${note.quizQuestions.join(', ')}\n`;
-      notesText += '\n';
+      notesText += `**Timestamp:** ${formatTime(note.timestamp)}\n`;
+      notesText += `**Main Topic:** ${note.mainTopic}\n\n`;
+
+      if (note.subtopics.length > 0) {
+        notesText += `**Subtopics:**\n`;
+        note.subtopics.forEach(subtopic => {
+          notesText += `- ${subtopic}\n`;
+        });
+        notesText += '\n';
+      }
+
+      if (note.keyPoints.length > 0) {
+        notesText += `**Key Points:**\n`;
+        note.keyPoints.forEach(point => {
+          notesText += `- ${point}\n`;
+        });
+        notesText += '\n';
+      }
+
+      if (note.examples.length > 0) {
+        notesText += `**Examples/Applications:**\n`;
+        note.examples.forEach(example => {
+          notesText += `- ${example}\n`;
+        });
+        notesText += '\n';
+      }
+
+      if (Object.keys(note.definitions).length > 0) {
+        notesText += `**Key Terms:**\n`;
+        for (const [term, definition] of Object.entries(note.definitions)) {
+          notesText += `- ${term}: ${definition}\n`;
+        }
+        notesText += '\n';
+      }
+
+      if (note.quizQuestions.length > 0) {
+        notesText += `**Quiz Questions:**\n`;
+        note.quizQuestions.forEach(question => {
+          notesText += `- ${question}\n`;
+        });
+        notesText += '\n';
+      }
+
+      notesText += '\n--------------------------------------------------\n\n';
     });
 
     // Use the Clipboard API to copy the text
@@ -153,18 +186,19 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   });
 
+  // PDF Export
   exportPDFButton.addEventListener('click', () => {
     if (!currentNotes.length) {
       updateStatus('No notes available for export!', true);
       return;
     }
-  
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-  
+
     currentNotes.forEach((note, index) => {
       let yPosition = 10;
-  
+
       // Set main topic with bold font
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
@@ -172,11 +206,11 @@ document.addEventListener('DOMContentLoaded', function() {
       yPosition += 10;
       doc.text(`Main Topic: ${note.mainTopic}`, 10, yPosition);
       yPosition += 10;
-  
+
       // Set subtopics, key points, examples, key terms, and quiz questions
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-  
+
       if (note.subtopics.length > 0) {
         doc.text('Subtopics:', 10, yPosition);
         yPosition += 7;
@@ -185,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
           yPosition += 7;
         });
       }
-  
+
       if (note.keyPoints.length > 0) {
         doc.text('Key Points:', 10, yPosition);
         yPosition += 7;
@@ -195,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
           yPosition += wrappedText.length * 7;
         });
       }
-  
+
       if (note.examples.length > 0) {
         doc.text('Examples:', 10, yPosition);
         yPosition += 7;
@@ -205,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
           yPosition += wrappedText.length * 7;
         });
       }
-  
+
       if (Object.keys(note.definitions).length > 0) {
         doc.text('Key Terms:', 10, yPosition);
         yPosition += 7;
@@ -215,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
           yPosition += wrappedText.length * 7;
         }
       }
-  
+
       if (note.quizQuestions.length > 0) {
         doc.text('Quiz Questions:', 10, yPosition);
         yPosition += 7;
@@ -225,13 +259,12 @@ document.addEventListener('DOMContentLoaded', function() {
           yPosition += wrappedText.length * 7;
         });
       }
-  
+
       if (index < currentNotes.length - 1) {
         doc.addPage();
       }
     });
-  
+
     doc.save(`${videoTitle}.pdf`);
   });
-  
 });
