@@ -159,24 +159,76 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
   
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-      updateStatus('Error: jsPDF library is not loaded.', true);
-      return;
-    }
-  
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
   
     currentNotes.forEach((note, index) => {
-      doc.text(`Timestamp: ${formatTime(note.timestamp)}`, 10, 10 + index * 20);
-      doc.text(`Main Topic: ${note.mainTopic}`, 10, 20 + index * 20);
-      doc.text(`Subtopics: ${note.subtopics.join(', ')}`, 10, 30 + index * 20);
-      doc.text(`Key Points: ${note.keyPoints.join(', ')}`, 10, 40 + index * 20);
-      doc.text(`Examples: ${note.examples.join(', ')}`, 10, 50 + index * 20);
-      doc.text(`Key Terms: ${Object.entries(note.definitions).map(([term, def]) => `${term}: ${def}`).join(', ')}`, 10, 60 + index * 20);
-      doc.text(`Quiz Questions: ${note.quizQuestions.join(', ')}`, 10, 70 + index * 20);
+      let yPosition = 10;
   
-      if (index < currentNotes.length - 1) doc.addPage();
+      // Set main topic with bold font
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(`Timestamp: ${formatTime(note.timestamp)}`, 10, yPosition);
+      yPosition += 10;
+      doc.text(`Main Topic: ${note.mainTopic}`, 10, yPosition);
+      yPosition += 10;
+  
+      // Set subtopics, key points, examples, key terms, and quiz questions
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+  
+      if (note.subtopics.length > 0) {
+        doc.text('Subtopics:', 10, yPosition);
+        yPosition += 7;
+        note.subtopics.forEach(subtopic => {
+          doc.text(`- ${subtopic}`, 15, yPosition);
+          yPosition += 7;
+        });
+      }
+  
+      if (note.keyPoints.length > 0) {
+        doc.text('Key Points:', 10, yPosition);
+        yPosition += 7;
+        note.keyPoints.forEach(point => {
+          const wrappedText = doc.splitTextToSize(`- ${point}`, 180);
+          doc.text(wrappedText, 15, yPosition);
+          yPosition += wrappedText.length * 7;
+        });
+      }
+  
+      if (note.examples.length > 0) {
+        doc.text('Examples:', 10, yPosition);
+        yPosition += 7;
+        note.examples.forEach(example => {
+          const wrappedText = doc.splitTextToSize(`- ${example}`, 180);
+          doc.text(wrappedText, 15, yPosition);
+          yPosition += wrappedText.length * 7;
+        });
+      }
+  
+      if (Object.keys(note.definitions).length > 0) {
+        doc.text('Key Terms:', 10, yPosition);
+        yPosition += 7;
+        for (const [term, definition] of Object.entries(note.definitions)) {
+          const wrappedText = doc.splitTextToSize(`${term}: ${definition}`, 180);
+          doc.text(wrappedText, 15, yPosition);
+          yPosition += wrappedText.length * 7;
+        }
+      }
+  
+      if (note.quizQuestions.length > 0) {
+        doc.text('Quiz Questions:', 10, yPosition);
+        yPosition += 7;
+        note.quizQuestions.forEach(question => {
+          const wrappedText = doc.splitTextToSize(`- ${question}`, 180);
+          doc.text(wrappedText, 15, yPosition);
+          yPosition += wrappedText.length * 7;
+        });
+      }
+  
+      if (index < currentNotes.length - 1) {
+        doc.addPage();
+      }
     });
   
     doc.save(`${videoTitle}.pdf`);
